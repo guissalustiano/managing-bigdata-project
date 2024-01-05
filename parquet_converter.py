@@ -5,7 +5,7 @@ def convert2parquet(filepath: str):
 
     spark = SparkSession.builder.getOrCreate()
     df = spark.read.csv(filepath, header=True, inferSchema=True)
-    df.write.parquet(output, override=True)
+    df.write.parquet(output, mode='overwrite')
 
 
 if __name__ == "__main__":
