@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 
 def convert2parquet(filepath: str):
-    output = filepath.replace('.csv', '.parquet')
+    output = filepath.replace('.csv', '_parquet')
 
     spark = SparkSession.builder.getOrCreate()
     df = spark.read.csv(filepath, header=True, inferSchema=True)
