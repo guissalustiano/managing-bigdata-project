@@ -1,12 +1,14 @@
-import pyspark
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, explode, count
+
+def convert2parquet(filepath: str):
+    output = filepath.replace('.csv', '.parquet')
+
+    spark = SparkSession.builder.getOrCreate()
+    df = spark.read.csv(filepath, header=True, inferSchema=True)
+    df.write.parquet(output, override=True)
 
 
 if __name__ == "__main__":
-    input = "/user/s3301311/final_dataset.csv"
-    output = "/user/s3301311/final_dataset.parquet"
+    convert2parquet("/user/s3301311/final_dataset.csv")
+    convert2parquet("/user/s3301311/unbalaced_20_80_dataset.csv")
 
-    spark = SparkSession.builder.getOrCreate()
-    df = spark.read.csv(input, header=True, inferSchema=True)
-    df.write.parquet(output)
