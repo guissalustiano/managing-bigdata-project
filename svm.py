@@ -1,34 +1,33 @@
 #For train and test split
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import when
+from pyspark.sql.functions import when, col
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.classification import LinearSVC
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 
 SEED = 404
 
 spark = SparkSession.builder.getOrCreate()
 df = spark.read.parquet('/user/s3301311/final_dataset_parquet')
-
-df = df.sample(fraction=0.05, seed=SEED) # Just for test
-df = df.dropna()
-
+#df = spark.read.parquet('/user/s1999133/final_dataset_parquet_cleaned')
 
 # Convert Label to int
-df = df.withColumn("IsDDOS", when(df["Label"] == "ddos", 1).otherwise(0))
+df = df.replace(float('inf'), None).replace(float('-inf'), None)
+df = df.dropna()
+df = df.withColumn("label", when(df["Label"] == "ddos", 1).otherwise(0))
 #df = df.drop("Label")
 
-train_data, test_data = df.randomSplit([0.8, 0.2], seed=SEED)
-
-assembler = VectorAssembler(inputCols=[
-#        "Flow ID",
-#        "Src IP",
+inputCols = [
+        #"Flow ID",
+        #"Src IP",
         "Src Port",
-#        "Dst IP",
+        #"Dst IP",
         "Dst Port",
         "Protocol",
-#        "Timestamp",
+        #"Timestamp",
         "Flow Duration",
         "Tot Fwd Pkts",
         "Tot Bwd Pkts",
@@ -58,10 +57,6 @@ assembler = VectorAssembler(inputCols=[
         "Bwd IAT Std",
         "Bwd IAT Max",
         "Bwd IAT Min",
-        "Fwd PSH Flags",
-        "Bwd PSH Flags",
-        "Fwd URG Flags",
-        "Bwd URG Flags",
         "Fwd Header Len",
         "Bwd Header Len",
         "Fwd Pkts/s",
@@ -71,24 +66,16 @@ assembler = VectorAssembler(inputCols=[
         "Pkt Len Mean",
         "Pkt Len Std",
         "Pkt Len Var",
-        "FIN Flag Cnt",
         "SYN Flag Cnt",
         "RST Flag Cnt",
         "PSH Flag Cnt",
         "ACK Flag Cnt",
-        "URG Flag Cnt",
         "CWE Flag Count",
         "ECE Flag Cnt",
         "Down/Up Ratio",
         "Pkt Size Avg",
         "Fwd Seg Size Avg",
         "Bwd Seg Size Avg",
-        "Fwd Byts/b Avg",
-        "Fwd Pkts/b Avg",
-        "Fwd Blk Rate Avg",
-        "Bwd Byts/b Avg",
-        "Bwd Pkts/b Avg",
-        "Bwd Blk Rate Avg",
         "Subflow Fwd Pkts",
         "Subflow Fwd Byts",
         "Subflow Bwd Pkts",
@@ -98,24 +85,30 @@ assembler = VectorAssembler(inputCols=[
         "Fwd Act Data Pkts",
         "Fwd Seg Size Min",
         "Active Mean",
-        "Active Std",
         "Active Max",
         "Active Min",
         "Idle Mean",
         "Idle Std",
         "Idle Max",
         "Idle Min",
-        "IsDDOS",
-    ], 
-    outputCol="features"
-)
-train_data = assembler.transform(train_data)
+]
 
-svm = LinearSVC(featuresCol="features", labelCol="IsDDOS")
+print("slit data")
+train_data, test_data = df.randomSplit([0.8, 0.2], seed=SEED)
+
+print("vectorize")
+assembler = VectorAssembler(inputCols=inputCols, outputCol="features")
+train_data = assembler.transform(train_data)
+test_data = assembler.transform(test_data)
+
+svm = LinearSVC(featuresCol="features", labelCol="label")
+
 model = svm.fit(train_data)
 
 predictions = model.transform(test_data)
 evaluator = BinaryClassificationEvaluator()
 accuracy = evaluator.evaluate(predictions)
 
-print(f"accuracy: {accuracy}")
+# Evaluate the predictions and print the accuracy
+# The evaluator uses the default metric (area under ROC curve) to evaluate accuracy
+print(f"Test Accuracy: {accuracy}")
