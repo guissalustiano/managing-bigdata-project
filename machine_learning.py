@@ -113,10 +113,16 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
     splits = data.randomSplit([1.0] + [1.0 for _ in range(folds)], seed=seed)
 
     metrics = {
-        "f1": 0.0,
         "accuracy": 0.0,
+        "weightedFMeasure": 0.0,
         "weightedPrecision": 0.0,
-        "weightedRecall": 0.0
+        "weightedRecall": 0.0,
+        'precisionByLabel - 0': 0.0,
+        'precisionByLabel - 1': 0.0,
+        'recallByLabel - 0': 0.0,
+        'recallByLabel - 1': 0.0,
+        'fMeasureByLabel - 0': 0.0,
+        'fMeasureByLabel - 1': 0.0
     }
 
     for i in range(folds):
@@ -137,10 +143,16 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
         predictions = model.transform(test)
 
         print("computing statistics...")
-        metrics['f1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="f1").evaluate(predictions)
         metrics['accuracy'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy").evaluate(predictions)
+        metrics['weightedFMeasure'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="weightedFMeasure").evaluate(predictions)
         metrics['weightedPrecision'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="weightedPrecision").evaluate(predictions)
         metrics['weightedRecall'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="weightedRecall").evaluate(predictions)
+        metrics['precisionByLabel - 0'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=0, metricName="precisionByLabel").evaluate(predictions)
+        metrics['precisionByLabel - 1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=1, metricName="precisionByLabel").evaluate(predictions)
+        metrics['recallByLabel - 0'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=0, metricName="recallByLabel").evaluate(predictions)
+        metrics['recallByLabel - 1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=1, metricName="recallByLabel").evaluate(predictions)
+        metrics['fMeasureByLabel - 0'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=0, metricName="fMeasureByLabel").evaluate(predictions)
+        metrics['fMeasureByLabel - 1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=1, metricName="fMeasureByLabel").evaluate(predictions)
 
     # average statistics
     for name, value in metrics.items():
