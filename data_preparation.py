@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, isnan, when, count, lit
+from pyspark.sql.functions import col, isnan, isnull, when, count, lit
 import argparse
 
 
@@ -19,11 +19,14 @@ def clean_data(datapath: str, predominance_threshold=0.95, nan_threshold=0.05):
 
     print("started data cleaning for {}...".format(datapath))
 
-    # map infs to nans
+    # map null to nans
     for col_name in df_cleaned.columns:
-        df_cleaned = df_cleaned.withColumn(col_name, when(isnan(1 / col(col_name)), float('nan')).otherwise(col(col_name)))
+        df_cleaned = df_cleaned.withColumn(col_name, when(isnull(col(col_name)), float('nan')).otherwise(col(col_name)))
+    print("mapped nulls to nans...")
 
-    print("removed nans...")
+    # map infs to nans
+    df_cleaned = df_cleaned.replace(float('inf'), None).replace(float('-inf'), None)
+    print("mapped infs to nans...")
 
     def get_predominant_category(col_name):
         category_counts = df_cleaned.groupBy(col_name).count()
