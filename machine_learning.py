@@ -156,8 +156,7 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
         metrics['fMeasureByLabel - 1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricLabel=1, metricName="fMeasureByLabel").evaluate(predictions)
 
     # average statistics
-    for name, value in metrics.items():
-        value /= folds
+    metrics = {name: value / folds for name, value in metrics.items()}
 
     print("------------- done ------------")
     return metrics
