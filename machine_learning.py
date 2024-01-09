@@ -5,6 +5,7 @@ from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.classification import LinearSVC
 from pyspark.sql.functions import col, isnan, isnull, when, count, lit, rand, round
+import functools
 import argparse
 import json
 import sys
@@ -19,21 +20,10 @@ def get_session():
 
 
 def load_data(data_path):
-    spark = get_session()
-    df = spark.read.parquet('/user/s3301311/final_dataset_parquet')
-    # df = spark.read.parquet('/user/s1999133/final_dataset_parquet_cleaned')
-
-    # Convert Label to int
-    df = df.replace(float('inf'), None).replace(float('-inf'), None)
-    df = df.dropna()
-    df = df.withColumn("label", when(df["Label"] == "ddos", 1).otherwise(0))
-    # df = df.drop("Label")
-    return df
-
-    # print("loading data from {}...".format(data_path))
-    # data = spark.read.parquet(data_path)
-    # data = data.withColumn("label", when(data["Label"] == "ddos", 1).otherwise(0))
-    # return data
+    print("loading data from {}...".format(data_path))
+    data = get_session().read.parquet(data_path)
+    data = data.withColumn("label", when(data["Label"] == "ddos", 1).otherwise(0))
+    return data
 
 
 def create_assembler():
@@ -120,21 +110,25 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
     data = assembler.transform(data)
 
     print("computing splits...")
-    data = data.withColumn("fold", round(rand(seed) * folds).cast("int"))
+    splits = data.randomSplit([1.0] + [1.0 for _ in range(folds)], seed=seed)
 
     metrics = {
+        "f1": 0.0,
         "accuracy": 0.0,
+        "weightedPrecision": 0.0,
+        "weightedRecall": 0.0
     }
 
     for i in range(folds):
-        print("starting fold {}...".format(i+1))
+        print("------- starting fold {} -------".format(i+1))
 
         print("spawning new model...")
         model = getattr(sys.modules[__name__], model_name)(featuresCol="features", labelCol="label")
 
-        print("splitting data into train test...")
-        train = data.filter(data.fold != i)
-        test = data.filter(data.fold == i)
+        print("assembling train test splits...")
+        train = [splits[k] for k in range(len(splits)) if k != i]
+        train = functools.reduce(lambda df1, df2: df1.union(df2.select(df1.columns)), train, train.pop(0))
+        test = splits[i]
 
         print("fitting model...")
         model = model.fit(train)
@@ -143,12 +137,16 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
         predictions = model.transform(test)
 
         print("computing statistics...")
+        metrics['f1'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="f1").evaluate(predictions)
         metrics['accuracy'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy").evaluate(predictions)
+        metrics['weightedPrecision'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="weightedPrecision").evaluate(predictions)
+        metrics['weightedRecall'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="weightedRecall").evaluate(predictions)
 
     # average statistics
     for name, value in metrics.items():
         value /= folds
 
+    print("------------- done ------------")
     return metrics
 
 
