@@ -93,16 +93,14 @@ inputCols = [
         "Idle Min",
 ]
 
+print("vectorize")
+assembler = VectorAssembler(inputCols=inputCols, outputCol="features")
+df = assembler.transform(df)
+
 print("slit data")
 train_data, test_data = df.randomSplit([0.8, 0.2], seed=SEED)
 
-print("vectorize")
-assembler = VectorAssembler(inputCols=inputCols, outputCol="features")
-train_data = assembler.transform(train_data)
-test_data = assembler.transform(test_data)
-
 svm = LinearSVC(featuresCol="features", labelCol="label")
-
 model = svm.fit(train_data)
 
 predictions = model.transform(test_data)

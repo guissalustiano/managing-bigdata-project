@@ -25,7 +25,7 @@ def clean_data(datapath: str, predominance_threshold=0.95, nan_threshold=0.05):
     print("mapped nulls to nans...")
 
     # map infs to nans
-    df_cleaned = df_cleaned.replace(float('inf'), None).replace(float('-inf'), None)
+    df_cleaned = df_cleaned.replace(float('inf'), float('nan')).replace(float('-inf'), float('nan'))
     print("mapped infs to nans...")
 
     def get_predominant_category(col_name):

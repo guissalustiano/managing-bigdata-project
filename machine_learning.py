@@ -4,28 +4,36 @@ from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.classification import LinearSVC
-from pyspark.sql.functions import col, isnan, isnull, when, count, lit
+from pyspark.sql.functions import col, isnan, isnull, when, count, lit, rand, round
 import argparse
 import json
+import sys
+
+session = None
+
+def get_session():
+    global session
+    if session is None:
+        session = SparkSession.builder.getOrCreate()
+    return session
 
 
 def load_data(data_path):
-    spark = SparkSession.builder.getOrCreate()
-    df = spark.read.parquet('/user/s1999133/final_dataset_parquet')
+    spark = get_session()
+    df = spark.read.parquet('/user/s3301311/final_dataset_parquet')
     # df = spark.read.parquet('/user/s1999133/final_dataset_parquet_cleaned')
 
     # Convert Label to int
     df = df.replace(float('inf'), None).replace(float('-inf'), None)
     df = df.dropna()
     df = df.withColumn("label", when(df["Label"] == "ddos", 1).otherwise(0))
-    return sd
+    # df = df.drop("Label")
+    return df
 
-
-    print("loading data from {}...".format(data_path))
-    spark = SparkSession.builder.getOrCreate()
-    data = spark.read.parquet(data_path)
-    data = data.withColumn("label", when(data["Label"] == "ddos", 1).otherwise(0))
-    return data
+    # print("loading data from {}...".format(data_path))
+    # data = spark.read.parquet(data_path)
+    # data = data.withColumn("label", when(data["Label"] == "ddos", 1).otherwise(0))
+    # return data
 
 
 def create_assembler():
@@ -106,38 +114,42 @@ def create_assembler():
     return VectorAssembler(inputCols=columns, outputCol="features")
 
 
-def k_fold(data, model, assembler, split=[0.8, 0.2], folds=5, seed=404, optimize_params=False):
-    print("starting k-fold using {} folds and {} seed...".format(folds, seed))
+def k_fold(data, model_name, assembler, folds=5, seed=404):
 
-    param_grid = ParamGridBuilder()
+    print("vectorizing data...")
+    data = assembler.transform(data)
 
-    if optimize_params:
-        (param_grid
-            .addGrid(model.regParam, [0.1, 0.01])
-            .addGrid(model.maxIter, [10, 100]))
+    print("computing splits...")
+    data = data.withColumn("fold", round(rand(seed) * folds).cast("int"))
 
-    pipeline = Pipeline(stages=[assembler, model])
-
-    evaluator = MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy")
-
-    cross_validator = CrossValidator(estimator=pipeline,
-                                     estimatorParamMaps=param_grid.build(),
-                                     evaluator=evaluator,
-                                     numFolds=folds,
-                                     seed=seed)
-
-    train, test = data.randomSplit(split, seed=seed)
-    print(train.count(), test.count())
-
-    model = cross_validator.fit(train)
-    predictions = model.transform(test)
-
-    statistics = {
-        "accuracy": MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction",
-                                                  metricName="weightedPrecision").evaluate(predictions)
+    metrics = {
+        "accuracy": 0.0,
     }
 
-    return statistics
+    for i in range(folds):
+        print("starting fold {}...".format(i+1))
+
+        print("spawning new model...")
+        model = getattr(sys.modules[__name__], model_name)(featuresCol="features", labelCol="label")
+
+        print("splitting data into train test...")
+        train = data.filter(data.fold != i)
+        test = data.filter(data.fold == i)
+
+        print("fitting model...")
+        model = model.fit(train)
+
+        print("computing predictions...")
+        predictions = model.transform(test)
+
+        print("computing statistics...")
+        metrics['accuracy'] += MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy").evaluate(predictions)
+
+    # average statistics
+    for name, value in metrics.items():
+        value /= folds
+
+    return metrics
 
 
 if __name__ == "__main__":
@@ -148,8 +160,6 @@ if __name__ == "__main__":
     parser.add_argument('--student', default='1999133', type=str, help="exchange to interface with")
     parser.add_argument('--folds', default=5, type=int, help="number of folds")
     parser.add_argument('--seed', default=404, type=int, help="RNG seed")
-    parser.add_argument('--split', default='[0.8, 0.2]', type=str, help="train-test split")
-    parser.add_argument('--optimize', default=False, type=bool, help="Whenever to optimize hyperparameters")
 
     # parse command line arguments
     args = parser.parse_args()
@@ -159,6 +169,6 @@ if __name__ == "__main__":
     data = load_data("/user/{}/final_dataset_parquet_cleaned".format(student_id))
     assembler = create_assembler()
 
-    for model in [LinearSVC(featuresCol="features", labelCol="label")]:
-        statistics = k_fold(data, model, assembler, json.loads(args.split), args.folds, args.seed, args.optimize)
-        print(statistics)
+    for model in ['LinearSVC']:
+        metrics = k_fold(data, model, assembler, args.folds, args.seed)
+        print(metrics)
