@@ -3,7 +3,7 @@ from pyspark.ml import Pipeline
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-from pyspark.ml.classification import LinearSVC
+from pyspark.ml.classification import LinearSVC, RandomForestClassifier
 from pyspark.sql.functions import col, isnan, isnull, when, count, lit, rand, round
 import functools
 import argparse
@@ -105,6 +105,7 @@ def create_assembler():
 
 
 def k_fold(data, model_name, assembler, folds=5, seed=404):
+    print("--- started k-fold validation ---")
 
     print("vectorizing data...")
     data = assembler.transform(data)
@@ -179,6 +180,6 @@ if __name__ == "__main__":
     data = load_data("/user/{}/final_dataset_parquet_cleaned".format(student_id))
     assembler = create_assembler()
 
-    for model in ['LinearSVC']:
+    for model in ['LinearSVC', 'RandomForestClassifier']:
         metrics = k_fold(data, model, assembler, args.folds, args.seed)
-        print(metrics)
+        print("{}: {}".format(model, metrics))
