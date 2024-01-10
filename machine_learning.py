@@ -107,11 +107,14 @@ def create_assembler():
 def k_fold(data, model_name, assembler, folds=5, seed=404):
     print("--- started k-fold validation ---")
 
+    if folds < 2:
+        raise RuntimeError("expects at least 2 folds but is given {}".format(folds))
+
     print("vectorizing data...")
     data = assembler.transform(data)
 
     print("computing splits...")
-    splits = data.randomSplit([1.0] + [1.0 for _ in range(folds)], seed=seed)
+    splits = data.randomSplit([1.0 for _ in range(folds)], seed=seed)
 
     metrics = {
         "accuracy": 0.0,
@@ -164,7 +167,7 @@ def k_fold(data, model_name, assembler, folds=5, seed=404):
 
 if __name__ == "__main__":
     # create parser
-    parser = argparse.ArgumentParser(prog='data_preparation', description='prepares data for further processing')
+    parser = argparse.ArgumentParser(prog='machine_learning', description='performs k-fold validation')
 
     # add command line arguments
     parser.add_argument('--student', default='1999133', type=str, help="exchange to interface with")
