@@ -25,6 +25,8 @@ def load_data(data_path):
     data = data.withColumn("label", when(data["Label"] == "ddos", 1).otherwise(0))
     print("vectorizing data...")
     data = utilities.vectorize(data)
+    print("selecting features...")
+    data = utilities.feature_select(data)
     return data
 
 def k_fold(data, model_name, folds=5, seed=404):

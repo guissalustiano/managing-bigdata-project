@@ -1,15 +1,15 @@
-from pyspark.ml.feature import VectorAssembler
-from pyspark.ml.features import VarianceThresholdSelector
+from pyspark.ml.feature import VectorAssembler, VarianceThresholdSelector, UnivariateFeatureSelector, StandardScaler
+
 
 def vectorize(dataframe):
 
     input_columns = [
         # "Flow ID",
         # "Src IP",
-        "Src Port",
+        #"Src Port",
         # "Dst IP",
-        "Dst Port",
-        "Protocol",
+        #"Dst Port",
+        #"Protocol",
         # "Timestamp",
         "Flow Duration",
         "Tot Fwd Pkts",
@@ -78,3 +78,17 @@ def vectorize(dataframe):
 
     assembler = VectorAssembler(inputCols=input_columns, outputCol="features")
     return assembler.transform(dataframe)
+
+
+def feature_select(dataframe, select_top=30):
+
+    # apply z-score normalization
+    dataframe = StandardScaler(inputCol="features", outputCol="new_features", withStd=True, withMean=False) \
+        .fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
+
+    # select top 30 based on hypothesis testing (ANOVA)
+    selector = UnivariateFeatureSelector(outputCol="new_features", labelCol='label', selectionMode="numTopFeatures")
+    selector.setFeatureType("continuous").setLabelType("categorical").setSelectionThreshold(select_top)
+    dataframe = selector.fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
+
+    return dataframe
