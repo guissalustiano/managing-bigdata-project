@@ -99,4 +99,9 @@ def minmax_feature_select(dataframe, select_top=30):
     dataframe = MinMaxScaler(inputCol="features", outputCol="new_features") \
         .fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
 
+    # select top 30 based on hypothesis testing (ANOVA)
+    selector = UnivariateFeatureSelector(outputCol="new_features", labelCol='label', selectionMode="numTopFeatures")
+    selector.setFeatureType("continuous").setLabelType("categorical").setSelectionThreshold(select_top)
+    dataframe = selector.fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
+
     return dataframe
