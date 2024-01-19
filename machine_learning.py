@@ -26,7 +26,8 @@ def load_data(data_path):
     print("vectorizing data...")
     data = utilities.vectorize(data)
     print("selecting features...")
-    data = utilities.feature_select(data)
+    # data = utilities.standard_feature_select(data)
+    data = utilities.minmax_feature_select(data)
     return data
 
 def k_fold(data, model_name, folds=5, seed=404):

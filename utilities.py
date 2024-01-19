@@ -1,4 +1,4 @@
-from pyspark.ml.feature import VectorAssembler, VarianceThresholdSelector, UnivariateFeatureSelector, StandardScaler
+from pyspark.ml.feature import VectorAssembler, VarianceThresholdSelector, UnivariateFeatureSelector, StandardScaler, MinMaxScaler
 
 
 def vectorize(dataframe):
@@ -80,7 +80,7 @@ def vectorize(dataframe):
     return assembler.transform(dataframe)
 
 
-def feature_select(dataframe, select_top=30):
+def standard_feature_select(dataframe, select_top=30):
 
     # apply z-score normalization
     dataframe = StandardScaler(inputCol="features", outputCol="new_features", withStd=True, withMean=False) \
@@ -90,5 +90,13 @@ def feature_select(dataframe, select_top=30):
     selector = UnivariateFeatureSelector(outputCol="new_features", labelCol='label', selectionMode="numTopFeatures")
     selector.setFeatureType("continuous").setLabelType("categorical").setSelectionThreshold(select_top)
     dataframe = selector.fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
+
+    return dataframe
+
+def minmax_feature_select(dataframe, select_top=30):
+
+    # apply min-max standarization
+    dataframe = MinMaxScaler(inputCol="features", outputCol="new_features") \
+        .fit(dataframe).transform(dataframe).drop("features").withColumnRenamed("new_features", "features")
 
     return dataframe
