@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='machine_learning', description='performs k-fold validation')
 
     # add command line arguments
-    parser.add_argument('--student', default='1999133', type=str, help="exchange to interface with")
+    parser.add_argument('--student', default='1999133', type=str, help="student to execute as")
     parser.add_argument('--folds', default=5, type=int, help="number of folds")
     parser.add_argument('--seed', default=404, type=int, help="RNG seed")
 
