@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='data_preparation', description='prepares data for further processing')
 
     # add command line arguments
-    parser.add_argument('--student', default='3301311', type=str, help="exchange to interface with")
+    parser.add_argument('--student', default='3301311', type=str, help="student to execute as")
 
     # parse command line arguments
     args = parser.parse_args()
